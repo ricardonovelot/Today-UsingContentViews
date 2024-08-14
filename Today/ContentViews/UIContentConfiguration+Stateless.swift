@@ -6,3 +6,10 @@
 //
 
 import Foundation
+import UIKit
+
+extension UIContentConfiguration{
+    func updated(for state: UIConfigurationState) -> Self { // provide a specialized configuration for a given state.
+        return self
+    }
+}

@@ -9,10 +9,13 @@ class ReminderViewController: UICollectionViewController {
     private typealias Snapshot = NSDiffableDataSourceSnapshot<Section, Row>
 
     var reminder: Reminder
+    var workingReminder: Reminder
     private var dataSource: DataSource!
-
+    
     init(reminder: Reminder) {
         self.reminder = reminder
+        self.workingReminder = reminder
+        
         var listConfiguration = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
         listConfiguration.showsSeparators = false
         listConfiguration.headerMode = .firstItemInSection
@@ -45,50 +48,75 @@ class ReminderViewController: UICollectionViewController {
     override func setEditing(_ editing: Bool, animated: Bool) {
         super.setEditing(editing, animated: animated)
         if editing {
-            updateSnapshotForEditing()
+            prepareForEditing()
         } else {
-            updateSnapshotForViewing()
+            prepareForViewing()
         }
     }
 
     func cellRegistrationHandler(cell: UICollectionViewListCell, indexPath: IndexPath, row: Row) {
         let section = section(for: indexPath)
         switch (section, row) {
+            
         case (_, .header(let title)):
-            var contentConfiguration = cell.defaultContentConfiguration()
-            contentConfiguration.text = title
-            cell.contentConfiguration = contentConfiguration
+            cell.contentConfiguration = headerConfiguration(for: cell, with: title)
+        
         case (.view, _):
-            var contentConfiguration = cell.defaultContentConfiguration()
-            contentConfiguration.text = text(for: row)
-            contentConfiguration.textProperties.font = UIFont.preferredFont(forTextStyle: row.textStyle)
-            contentConfiguration.image = row.image
-            cell.contentConfiguration = contentConfiguration
-        default:
-            fatalError("Unexpected combination of section and row.")
+            cell.contentConfiguration = defaultConfiguration(for: cell, at: row)
+        
+        case (.title, .editableText(let title)):
+            cell.contentConfiguration = titleConfiguration(for: cell, with: title)
+            
+        case (.date, .editableDate(let date)):
+            cell.contentConfiguration = dateConfiguration(for: cell, with: date)
+            
+        case (.notes, .editableText(let notes)):
+            cell.contentConfiguration = notesConfiguration(for: cell, with: notes)
+            
+            default:
+                fatalError("Unexpected combination of section and row.")
         }
         cell.tintColor = .todayPrimaryTint
     }
 
-    func text(for row: Row) -> String? {
-        switch row {
-        case .date: return reminder.dueDate.dayText
-        case .notes: return reminder.notes
-        case .time: return reminder.dueDate.formatted(date: .omitted, time: .shortened)
-        case .title: return reminder.title
-        default: return nil
-        }
-    }
+
 
     private func updateSnapshotForEditing() {
         var snapshot = Snapshot()
         snapshot.appendSections([.title, .date, .notes])
-        snapshot.appendItems([.header(Section.title.name)], toSection: .title)
-        snapshot.appendItems([.header(Section.date.name)], toSection: .date)
-        snapshot.appendItems([.header(Section.notes.name)], toSection: .notes)
+        
+        snapshot.appendItems([
+            .header(Section.title.name), 
+            .editableText(reminder.title)
+        ], toSection: .title)
+        
+        snapshot.appendItems([
+            .header(Section.date.name),
+            .editableDate(reminder.dueDate)
+        ], toSection: .date)
+        
+        snapshot.appendItems([
+            .header(Section.notes.name),
+            .editableText(reminder.notes)
+        ], toSection: .notes)
+        
         dataSource.apply(snapshot)
     }
-
+    
+    private func prepareForEditing(){
+        updateSnapshotForEditing()
+    }
+    
+    private func prepareForViewing(){
+        
+        if workingReminder != reminder {
+            reminder = workingReminder
+        }
+        
+        updateSnapshotForViewing()
+    }
+    
+    
     private func updateSnapshotForViewing() {
         var snapshot = Snapshot()
         snapshot.appendSections([.view])
@@ -104,4 +132,8 @@ class ReminderViewController: UICollectionViewController {
         }
         return section
     }
+    
+
+    
+    
 }
